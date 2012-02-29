@@ -19,7 +19,7 @@ struct Tnode* buildtree(int nodetype1,int value1)
 	struct Tnode* temp=malloc(sizeof(struct Tnode));
 	if(nodetype1==0)
 	{
-		
+
 		temp->NODETYPE=nodetype1;
 		temp->VALUE=value1;
 		temp->left=NULL;
