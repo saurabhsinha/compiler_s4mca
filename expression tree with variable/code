@@ -1,0 +1,4 @@
+IN R0
+MOV [0] R0
+IN R0
+MOV [1] R0

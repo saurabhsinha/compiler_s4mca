@@ -1,4 +1,5 @@
 %{
+
 	#include<stdio.h>
 	#include<stdlib.h>
 	#include "y.tab.h"
@@ -6,26 +7,53 @@
 	struct Tnode* allocateNode(int,int,char,int);
 %}
 %%
-[\t ]+	;
+[\t\n ]+	
 
-[\n][\t \n]+	{	return '\n';
+
+"while"			{yylval.T = allocateNode(0,LOOP,'\0',-1);
+					return WHILE;}
+"do"				{
+					return DO;
+					}
+"endwhile"		{return ENDWHILE;}
+
+"begin"			{	return BEGN;
 					}
 
-begin			{	return BEGN;
+"end"				{	return ED;
 					}
 
-end				{	return ED;
-					}
-
-read			{
+"read"			{
 					yylval.T = allocateNode(0,RD,'\0',-1);
 					return READ;
 					}
 
-write			{
+"write"			{
 					yylval.T = allocateNode(0,WRT,'\0',-1);
 					return WRITE;
 					}
+
+"if"				{
+					
+					return IF;
+					}
+"else"				{
+					
+					return ELSE;
+					}
+"then"				{
+					return THEN;
+					}
+"endif"				{
+					
+					return ENDIF;
+					}
+
+">"				{
+					yylval.T= allocateNode(0,greaterthen,'\0',-1);
+					return GT;
+					}
+
 
 [a-z]			{
 					yylval.T = allocateNode(0,VRBL,'\0',yytext[0]-'a');
@@ -50,15 +78,18 @@ write			{
 										break;
 							case '=':	yylval.T = allocateNode(0,ASSGN,'=',-1);
 										break;
+							
 							default :	;
 						}
 						
 						return yytext[0];
 						}
+						. {yyerror("enter valid character");}
 
 %%
-int yyerror (void)
+int yyerror(char *s) 
 {
+	fprintf(stderr, "%s\n", s);
 	return 1;
 }
 
@@ -70,12 +101,11 @@ struct Tnode* allocateNode(int value,int flg,char optr,int binding)
 {
 	struct Tnode *N;
 	N = malloc(sizeof(struct Tnode));
-	
 	N->val = value;
 	N->flag = flg;
 	N->op = optr;
 	N->binding = binding;
 	N->l = N->r = NULL;
-	
+	N->m = NULL;
 	return N;
 }

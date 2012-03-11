@@ -1,5 +1,14 @@
 begin
 		read(a);
 		read(b);
-		write(a*b);
+		if(a>b)
+		then
+		write(a);
+		else 
+			write(b);
+		endif
+		while(a>b) do
+			write(a);
+			a=a-1;
+			endwhile ;
 end
