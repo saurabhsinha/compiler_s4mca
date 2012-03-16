@@ -4,8 +4,11 @@
 	FILE *yyin,*fp;
 	#include "decl.h"
 	#include<stdlib.h>
-	struct Tnode* allocateNode(int,int,char,int);
+	struct Tnode* allocateNode(int,int,char,char *,int);
 	int reg_count=0;
+	struct Gsymbol *ghead = NULL;
+	void Ginstall(char *,int,int);
+	struct Gsymbol *Glookup(char *);
 %}
 
 %union {	struct Tnode *T;
@@ -13,25 +16,49 @@
 
 %start prog
 %token DO ENDWHILE 
-%token <T> DIGIT VAR READ WRITE BEGN ED IF THEN ELSE ENDIF GE LE EQ NE GT WHILE
-%type <T> expr st stlist
+%token <T> DIGIT VAR READ WRITE BEGN ED IF THEN ELSE ENDIF GE LE EQ NE GT WHILE DECL ENDDECL INTEGER BOOLEAN
+%type <T> expr st stlist  GDefblock GDefList IntName BoolName
 %right <T> '='
 %left <T> '>'
 %left <T> '+' '-'
 %left <T> '*' '/'
 %%
-prog	:	BEGN  stlist ED
+
+
+prog	:	GDefblock BEGN  stlist ED
 			{
-				ex($2);
+				ex($3);
 				fp=fopen("code","w");
-				evaluate($2);
+				evaluate($3);
 				printf("\n");
 				}
 		;
 		
+		
+GDefblock :		DECL GDefList ENDDECL
+		;
+GDefList	:		GDefList INTEGER IntName ';'
+		|		GDefList BOOLEAN BoolName ';' 
+		|   {$$=NULL;}
+IntName	:	IntName ',' VAR
+			{ 
+				Ginstall($3->name,integer,1);
+				 }
+		|VAR    { 
+				Ginstall($1->name,integer,1);
+				 }
+BoolName	:	BoolName ',' VAR
+			{ 
+				Ginstall($3->name,boolean,1);
+				 }
+		|VAR    { 
+				Ginstall($1->name,boolean,1);
+				 }
+
+		
 stlist	:	stlist st
 			{
-				$$ = allocateNode(0,STLIST,'\0',-1);
+				$$ = allocateNode(0,STLIST,'\0',NULL,DUMMY_TYPE);
 				$$->l = $1;
 				$$->r = $2;
 				}
@@ -45,7 +72,7 @@ stlist	:	stlist st
 		
 st		:IF '(' expr ')' THEN stlist ELSE stlist ENDIF 
 		{ 
-			$$= allocateNode(0,DECISION,'\0',-1);
+			$$= allocateNode(0,DECISION,'\0',NULL,VOID_TYPE);
 			$$->l = $3;
 			$$->m = $6;
 			$$->r = $8;
@@ -53,7 +80,7 @@ st		:IF '(' expr ')' THEN stlist ELSE stlist ENDIF
 		
 		|WHILE '('expr ')' DO stlist ENDWHILE ';'
 		{
-			$$=allocateNode(0,LOOP,'\0',-1);
+			$$=allocateNode(0,LOOP,'\0',NULL,VOID_TYPE);
 			$$->l = $3;
 			$$->r = $6;
 			$$->m = NULL;
@@ -63,7 +90,6 @@ st		:IF '(' expr ')' THEN stlist ELSE stlist ENDIF
 				$$ = $2;
 				$$->l = $1;
 				$$->r = $3;
-				insertSymTable($1->binding,$3->val);
 				}
 		
 		|	READ '(' VAR ')' ';' 
@@ -134,12 +160,10 @@ int main(int argc,char *argv[])
 	return 0;
 }
 
-void insertSymTable(int x,int val)
-{
-	sym[x] = val;
-}
+
 int ex(struct Tnode *root)
 {
+	struct Gsymbol *temp;
 	if(!root)
 		return 0;
 	int b;
@@ -152,8 +176,10 @@ int ex(struct Tnode *root)
 		case RD:		
 						
 						scanf("%d",&b);
-						insertSymTable((root->l)->binding,b);
-						return 0;
+						temp=Glookup(root->l->name);
+						if(temp)
+							temp->BINDING[0]=b;
+						break;
 		
 		case WRT:		printf("%d\n",ex(root->l));
 						return 0;
@@ -164,7 +190,10 @@ int ex(struct Tnode *root)
 						else
 							{return 0;}
 		
-		case ASSGN:		return sym[(root->l)->binding] = ex(root->r);
+		case ASSGN:		 if(temp=Glookup(root->l->name))
+					{
+						temp->BINDING[0] = ex(root->r);
+					}
 		
 		case ADD:		return ex(root->l) + ex (root->r);
 		
@@ -174,7 +203,10 @@ int ex(struct Tnode *root)
 		
 		case DIV:		return ex(root->l) / ex (root->r);
 		
-		case VRBL:		return sym[root->binding];
+		case VRBL:		temp=Glookup(root->name);
+					if(temp)
+						return temp->BINDING[0];
+					break;
 		
 		case NUM:		return root->val;
 		case DECISION:	if(ex(root->l))
@@ -199,7 +231,7 @@ int evaluate(struct Tnode *Root)
 			evaluate(Root->r);
 			break;
 		case RD:
-			loc = (Root->l)->binding;
+			loc = Root->name - 'a';
 			r = getreg();
 			fprintf(fp,"IN R%d\n",r);
 			fprintf(fp,"MOV [%d] R%d\n",loc,r);
@@ -236,7 +268,7 @@ int evaluate(struct Tnode *Root)
 			return r;
 		case VRBL:
 			r=getreg();
-			loc=Root->binding;
+			loc = Root->name - 'a';
 			fprintf(fp,"MOV R%d [%d]",r,loc);
 			return r;
 	}
@@ -249,4 +281,35 @@ freereg()
 {
 	reg_count--;
 }
+struct Gsymbol *Glookup(char *name)	{
+	struct Gsymbol *temp = ghead;
+	while(temp)	{
+		if(strcmp(name,temp->NAME)==0) 
+			return temp;
+		temp = temp->NEXT;
+	}
+	return NULL;
+}
 
+void Ginstall(char *name,int type,int size)	{
+	struct Gsymbol *temp;
+	temp = Glookup(name);
+	if(temp)	{
+		printf("You have already declared %s ",name);
+		yyerror("");
+	}
+	else	{
+		temp =malloc(sizeof(struct Gsymbol));
+		temp->NAME = name;
+		temp->TYPE = type;
+		temp->SIZE = size;
+		temp->BINDING = (int *)malloc(sizeof(int)*size);
+		temp->NEXT = NULL;
+		if(ghead==NULL)
+			ghead =temp;
+		else	{
+			temp->NEXT = ghead;
+			ghead=temp;
+		}
+	}
+}

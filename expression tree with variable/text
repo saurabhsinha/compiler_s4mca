@@ -1,14 +1,14 @@
+decl
+integer a,sum,b;
+enddecl
 begin
 		read(a);
 		read(b);
-		if(a>b)
-		then
-		write(a);
-		else 
-			write(b);
-		endif
+		
 		while(a>b) do
 			write(a);
+			sum=a+b;
+			write(sum);
 			a=a-1;
 			endwhile ;
 end
