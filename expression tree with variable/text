@@ -1,5 +1,5 @@
 decl
-integer a,sum,b;
+integer a,b,c,d,sum;
 enddecl
 begin
 		read(a);
@@ -7,8 +7,7 @@ begin
 		
 		while(a>b) do
 			write(a);
-			sum=a+b;
-			write(sum);
+			write(b);
 			a=a-1;
 			endwhile ;
 end

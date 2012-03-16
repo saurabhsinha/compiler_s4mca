@@ -1,4 +1,19 @@
 IN R0
-MOV [-97] R0
+MOV [0] R0
 IN R0
-MOV [-97] R0
+MOV [1] R0
+Label0:
+MOV R0 [0]
+MOV R1 [1]
+GT R0 R1
+JZ R0 Label1
+MOV R0 [0]
+OUT R0
+MOV R0 [1]
+OUT R0
+MOV R0 [0]
+MOV R1 1 
+SUB R0 R1
+MOV [0] R0
+JMP Label0
+Label1:

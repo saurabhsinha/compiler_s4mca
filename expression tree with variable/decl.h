@@ -43,6 +43,7 @@ struct Gsymbol {
 	int TYPE;
 	int SIZE;
 	int *BINDING; 
+	int location;
 	struct Gsymbol *NEXT;
 };
 

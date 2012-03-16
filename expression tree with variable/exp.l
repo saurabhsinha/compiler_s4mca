@@ -117,7 +117,6 @@ struct Tnode* allocateNode(int value,int flg,char optr,char *name,int type)
 	N->val = value;
 	N->flag = flg;
 	N->op = optr;
-
 	N->l = N->r = NULL;
 	N->m = NULL;
 	N->name=name;

@@ -6,6 +6,10 @@
 	#include<stdlib.h>
 	struct Tnode* allocateNode(int,int,char,char *,int);
 	int reg_count=0;
+	int loc=0;
+	int labelCount = -1;
+	int getLabel();
+	void freeLabel();
 	struct Gsymbol *ghead = NULL;
 	void Ginstall(char *,int,int);
 	struct Gsymbol *Glookup(char *);
@@ -224,6 +228,7 @@ int ex(struct Tnode *root)
 int evaluate(struct Tnode *Root)
 {
 	int loc,r;
+	int lbl1,lbl2;
 	switch(Root->flag)
 	{
 		case STLIST:
@@ -231,7 +236,7 @@ int evaluate(struct Tnode *Root)
 			evaluate(Root->r);
 			break;
 		case RD:
-			loc = Root->name - 'a';
+			loc = Glookup(Root->l->name)->location;
 			r = getreg();
 			fprintf(fp,"IN R%d\n",r);
 			fprintf(fp,"MOV [%d] R%d\n",loc,r);
@@ -239,38 +244,72 @@ int evaluate(struct Tnode *Root)
 			return -1;
 		case WRT:
 			r = evaluate(Root->l);
-			fprintf(fp,"\nOUT R%d\n",r);
+			fprintf(fp,"OUT R%d\n",r);
 			freereg();
 			return -1;
+		case greaterthen:
+			r = evaluate(Root->l);
+			evaluate(Root->r);
+			fprintf(fp,"GT R%d R%d\n",r,r+1);
+			freereg();
+			return r;
+		case ASSGN:
+			r=evaluate(Root->r);
+			loc = Glookup(Root->l->name)->location;
+			fprintf(fp,"MOV [%d] R%d\n",loc,r);
+			freereg();
+			break;
+		case NUM:	r=getreg();fprintf(fp,"MOV R%d %d \n",r,Root->val);return r;
 		case ADD:
 			r=evaluate(Root->l);
 			evaluate(Root->r);
-			fprintf(fp,"\nADD R%d R%d",r,r+1);
+			fprintf(fp,"ADD R%d R%d\n",r,r+1);
 			freereg();
 			return r;
 		case SUB:
 			r=evaluate(Root->l);
 			evaluate(Root->r);
-			fprintf(fp,"\nSUB R%d R%d",r,r+1);
+			fprintf(fp,"SUB R%d R%d\n",r,r+1);
 			freereg();
 			return r;
 		case MUL:
 			r=evaluate(Root->l);
 			evaluate(Root->r);
-			fprintf(fp,"\nMUL R%d R%d",r,r+1);
+			fprintf(fp,"MUL R%d R%d\n",r,r+1);
 			freereg();
 			return r;
 		case DIV:
 			r=evaluate(Root->l);
 			evaluate(Root->r);
-			fprintf(fp,"\nDIV R%d R%d",r,r+1);
+			fprintf(fp,"DIV R%d R%d\n",r,r+1);
 			freereg();
 			return r;
 		case VRBL:
 			r=getreg();
-			loc = Root->name - 'a';
-			fprintf(fp,"MOV R%d [%d]",r,loc);
+			loc = Glookup(Root->name)->location;
+			fprintf(fp,"MOV R%d [%d]\n",r,loc);
 			return r;
+		case DECISION:
+			r = evaluate(Root->l);
+			lbl1 = getLabel();
+			lbl2 = getLabel();
+			fprintf(fp,"JZ R%d Label%d\n",r,lbl1);
+			freereg();
+			evaluate(Root->m);
+			fprintf(fp,"JMP Label%d\n",lbl2);
+			fprintf(fp,"Label%d:\n",lbl1);
+			evaluate(Root->r);
+			fprintf(fp,"Label%d:\n",lbl2);
+		case LOOP:
+			lbl1 = getLabel();
+			lbl2 = getLabel();
+			fprintf(fp,"Label%d:\n",lbl1);
+			r = evaluate(Root -> l);
+			fprintf(fp,"JZ R%d Label%d\n",r,lbl2);
+			freereg();
+			evaluate(Root -> r);
+			fprintf(fp,"JMP Label%d\n",lbl1);
+			fprintf(fp,"Label%d:\n",lbl2);
 	}
 }
 int getreg()
@@ -281,6 +320,13 @@ freereg()
 {
 	reg_count--;
 }
+int get_loc()
+{
+	return loc++;
+}
+int getLabel() { return ++labelCount; }
+void freeLabel() { labelCount--;}
+
 struct Gsymbol *Glookup(char *name)	{
 	struct Gsymbol *temp = ghead;
 	while(temp)	{
@@ -305,6 +351,7 @@ void Ginstall(char *name,int type,int size)	{
 		temp->SIZE = size;
 		temp->BINDING = (int *)malloc(sizeof(int)*size);
 		temp->NEXT = NULL;
+		temp->location=get_loc();
 		if(ghead==NULL)
 			ghead =temp;
 		else	{
